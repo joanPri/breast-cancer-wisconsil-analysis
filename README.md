@@ -2,9 +2,9 @@
 
 ## Base de datos de diagnóstico de cáncer de mama de Wisconsin
 
-## Autor
+## Autores
 
-Joan Prieto Montes y 
+Joan Prieto Montes y Ricardo Martínez
 
 ## Acerca de este software
 
