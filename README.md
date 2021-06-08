@@ -21,5 +21,5 @@ Puede chequear el dataset en la siguiente dirección:
 
 o desde el dataset adjunto en github:
 
-[https://archive.ics.uci.edu/ml/datasets/breast+cancer+wisconsin+(diagnostic)](https://archive.ics.uci.edu/ml/datasets/breast+cancer+wisconsin+(diagnostic))
+[https://github.com/joanPri/breast-cancer-wisconsil/blob/main/cancer.csv](https://github.com/joanPri/breast-cancer-wisconsil/blob/main/cancer.csv)
 
