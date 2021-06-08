@@ -1,0 +1,569 @@
+---
+title: 'Tipología y ciclo de vida de los datos: Práctica 2'
+author: "Autor: Joan Prieto y Ricardo Martínez"
+date: "Junio 2021"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Resolución
+
+## Descripción del dataset
+
+```{r}
+if (!require('dplyr')) install.packages('dplyr');library('dplyr')
+if (!require('tidyr')) install.packages('tidyr'); library('tidyr')
+if (!require('ggplot2')) install.packages('ggplot2'); library('ggplot2')
+if (!require('FSelector')) install.packages('FSelector'); library('FSelector')
+
+datos <- read.csv('cancer.csv',sep =",", stringsAsFactors = FALSE, header = TRUE)
+colnames(datos) <- c("id", "diagnosis", "radius_mean", "texture_mean", "perimeter_mean","area_mean", "smoothness_mean", "compactness_mean", "concavity_mean", "concave.points_mean", "symmetry_mean", "fractal_dimension_mean", "radius_se", "texture_se", "perimeter_se", "area_se", "smoothness_se", "compactness_se", "concavity_se", "concave.points_se", "symmetry_se", "fractal_dimension_se", "radius_worst", "texture_worst", "perimeter_worst", "area_worst", "smoothness_worst", "compactness_worst", "concavity_worst", "concave.points_worst", "symmetry_worst", "fractal_dimension_worst")
+  
+head(datos)
+```
+El dataset:
+```{r}
+filas <- dim(datos)[1]
+columnas <- dim(datos)[2]
+cat("Número de filas en el dataset: ", filas,
+    "\nNúmero de columnas en el dataset: ", columnas)
+```
+Como podemos observar tenemos suficientes muestras y características para llevar a cabo un análisis y estudio de los datos (e aplicar tecnicas de mienria de datos).
+
+Identificamos los siguientes atributos:
+
+* número de identificación
+* Diagnóstico (M = maligno, B = benigno)
+* radio (media de las distancias desde el centro hasta los puntos del perímetro)
+* textura (desviación estándar de los valores de la escala de grises)
+* perímetro
+* área
+* suavidad (variación local en longitudes de radio)
+* compacidad (perímetro ^ 2 / área - 1.0)
+* concavidad (severidad de las porciones cóncavas del contorno)
+* puntos cóncavos (número de porciones cóncavas del contorno)
+* simetría
+* dimensión fractal ("aproximación de la línea de costa" - 1)
+
+La media, el error estándar y el "peor" o el mayor (media de los tres
+valores más grandes) de estas características se han calculado para cada imagen,
+resultando en 30 funciones. Por ejemplo, el campo 3 es Radio medio, campo
+13 es Radio SE, el campo 23 es Peor radio.
+
+Todos los valores de las características están codificados con cuatro dígitos significativos.
+
+## Importancia y objetivos de los análisis
+Actualmente el cancer de mama es uno de los canceres más extendidos. En la actulidad un 30% de los canceres diagnosticados a las mujeres corresponde a este tipo de canceres. Tambien tenemos que considerar que es el tumor con mayor presencia en el mundo. De ahí el objetivo de conocer y analizar las caracteristicas principales de los tumores que pueden desencandenar en un cancer de mama de caracter maligno. Una vez que podamos identificar las caracteristicas principales de un cancer maligno podremos diagnosticar futuras muestras y dar una orientación rápida y que sirva de apoyo a los médicos.En este tipo de tumores un diagnostico rápido puede reducir drasticamente la mortalidad.
+
+Actualmente disponemos de historicos de datos que nos permiten llevar a cabo desarrollo de modelos de mineria de datos como clustering o clasificación para poder agrupar los diferentes casos y a su vez técnicas como la regresión logistica o KNN para poder pronosticar nuevos casos en función a los datos históricos.
+
+Por lo tanto los objetivos principales serian: a) Conocer como se distribuyen nuestros datos. b) Conocer las caracteristicas que determinan un cancer de mama de caracter maligno. Y finalmente poder pronosticar futuras muestras.
+
+
+## Limpieza de datos
+
+En primer lugar nos gustaria indicar que dos tipos de datos nulos solemos encontrarnos: - MCAR: se tratan de datos faltantes que se distribuyen de manaera aleatoria, es decir, para todas las observaciones la probabilidad de perdida de una variable es igual. Esta perdida no depende de otras variables. - MAR: la probabilidad de la perdida de la observación de una muestra depende la información observada. Podemos enterderlo mejor con un ejemplo, un competidor de salto que cae eliminado en la 3 ronda no tendra puntación para el resto. Por lo tanto son datos faltantes que depende de la muestra y la información observada (deportista, puntuación por ronda.).
+
+En esta etapa tenemos que ver si disponemos de datos nulos:
+```{r}
+library(dplyr)
+colSums(is.na(datos))
+```
+
+Podemos ver ahora que no tenemos datos nulos en nuesto conjunto de datos, este apartado se trata sobre el tratamiento de datos nulos, vamos a proceder a estudiar las opciones que tenemos para poder reemplazar posibles datos nulos a futuro en otras variables. Existen varias técnicas o paquetes para imputar los datos nulos en R, en nuestro caso emplearemos 2: -La técnica de KNN. -Paquete Mice. 
+
+Para poder llevar a cabo los supuestos de datos nulos, debemos de crear datos nulos en nuestras variables.
+
+
+if (!require("missForest")) install.packages('missForest'); library('missForest')
+set.seed(81)
+datos_limpios.mis<- prodNA(datos_limpios,noNA=0.1)
+summary(datos_limpios.mis)
+
+```{r}
+datos_limpios <- datos[-33]
+any(is.na(datos_limpios))
+if (!require("missForest")) install.packages('missForest'); library('missForest')
+set.seed(81)
+datos_limpios.mis<- prodNA(datos_limpios,noNA=0.1)
+summary(datos_limpios.mis)
+```
+Podemos observar ahora que tenemos datos nulos en todas las variables, como podemos ver todoas las caracteristicas disponen ahora de datos nulos, vamos aplicar la primera técnica, como es de suponer, el ID nunca podrá ser erroneo o faltante ya que de normal, en las bases de datos se trata de un valor autoincrementable, por lo t tanto eliminaremos de nuestos datos este campo para la parte de probar valores nulos:
+
+```{r}
+datos_nulos_prueba <- datos_limpios.mis[-1]
+```
+
+##KNN
+Podemos imputar cualquier tipo de dato, tanto una variable continua como una variable categorica.
+
+```{r}
+if(!require('VIM')) install.packages('VIM'); library('VIM')
+knnOutput <- kNN(datos_nulos_prueba,variable = names(datos_nulos_prueba),k=6)  # perform knn imputation.
+summary(knnOutput)
+```
+Como podemos observar se han creado variables logicas que no nos interesan, estas variables que se han generado son la base que emplea para poder imputar los valores nulos en nuestro dataset, por lo tanto tendremos que seleccionar unicamente las variables del dataset original:
+
+
+
+```{r}
+knn_dataset <- subset(knnOutput,select =diagnosis:fractal_dimension_worst)
+summary(knn_dataset)
+```
+Finalmente podemos ver que no tenemos datos nulos y tampoco tenemos la variables que se habian creado de manaera automatica. Terminamos indicando que este metodo es valido tanto para variables númericas continuas como para variables categóricas, este tipo de imputación de datos mejor el error que se genera al imputarlos de manera automatica con la media o la mediana de los datos.
+
+##MICE
+
+Se trata de un imputación multiple. Cada variable se imputa de una manera independiente, para variables númericas continuas mediante (pmm), para variables de datos binarios (regresión logistica , es decir toman dos valores “logreg”), para datos categóricos ordenados (odds proporcional) y para no ordenados ( regresión logística politómica,“polyreg”).
+vamos a trabajar con las variables numéricas a modo de ejemplo. Para trabajar con los valores categóricos unicamente tendriamos que modificar el tipo de imputación. Seleccionamos dos variables a modo de ejemplo.
+
+
+```{r}
+if(!require('mice')) install.packages('mice'); library('mice')
+datos_categoricos <- datos_limpios.mis["diagnosis"]
+datos_numericos <- datos_limpios.mis[3:4]
+datos_imputados<- mice(datos_numericos,m=5,maxit =50, method = 'pmm', seed = 500 )
+```
+```{r}
+summary(datos_imputados)
+```
+
+```{r}
+any(is.na(datos_imputados$imp$radius_mean))
+```
+```{r}
+densityplot(datos_imputados)
+```
+Podemos ver en magenta los valores que se han ido imputando a lo largo de la regresion lineal, vemos que se adaptan de manera correcta a la media de los valores reales de dicha variable.
+
+Tambien podriamos indicar que el método de imputación de valores sea mediante el algoritmo CART:
+
+```{r}
+datos_imputados<- mice(datos_numericos,m=5,maxit =10, method = 'cart', seed = 500 )
+```
+```{r}
+densityplot(datos_imputados)
+```
+Al cambiar el método de imputación de los valores, vemos como con el método de CART tenemos outliers bastante marcados, esto deberia de analizarse para comprobar a que se deben. 
+
+Con estos dos ejemplos de imputación de datos (existen otros métodos pero hemos considerado explicar e implementar dos) vemos como se llevaria a cabo un proceso de imputación de datos nulos.
+
+Como se ha visto con anterioridad, nuestro fichero de origen no tenia datos nulos. A modo de indicar como trabajar con ellos hemos llevado a cabo esta sección.
+
+##Tratamiento de valores extremos.
+
+En este punto nos centraremos en ver y tratar los valores extremos de nuestras variables. Para ello lo haremos sobre las variables principales.
+En primer lugar llevamos a cabo un escalado de los datos para tenerlos todos en el mismo rango.
+
+```{r}
+datos_escalados <- mutate_if(datos_limpios,is.numeric,scale,center = FALSE)
+```
+
+```{r}
+
+boxplot(datos_escalados$perimeter_worst~datos_escalados$diagnosis,main="Perimerter Worst vs Diagnosis")
+
+```
+Observamos claramente como los tumores malignos tienen un mayor perimetro, tambien se ve claramente la presencia de outlieres en ambos tipos, sobre todo y con mayor intensidad en los malignos.
+
+Filtramos por malignos y benignos: Evaluamos primero el benigno:
+
+
+```{r}
+datos_M<- subset(datos_escalados,datos_escalados$diagnosis=="M")
+datos_B<- subset(datos_escalados,datos_escalados$diagnosis=="B")
+
+summary(datos_B$perimeter_worst)
+```
+Vemos que para el tipo maligno el máximo es de 1.129. Vamos a calcular el rango intecuantilico y ver si este valor se encuentra por encima del umbral superior: IG1 -> Q3 - Q1 y el valor del umbral es Q1 + 1.5 * IQR
+
+```{r}
+IQR<-0.8586-0.6958
+umbral<-(0.8586 + (1.5*IQR))
+umbral
+```
+
+
+Si vemos los valores solo del perimetro del caso B:
+
+```{r}
+outliers <- boxplot.stats(datos_B$perimeter_worst)$out
+out_ind <- which(datos_B$perimeter_worst %in% c(outliers))
+datos_B[out_ind,]
+```
+Tenemos unicamente 2 casos, donde podemos observar que tanto el perimetro por encima como abajo no distan mucho de sus respectivos valores de referencia por lo que los tomaremos como válidos.
+
+Lo mismo debemos de hacer con los malignos:
+
+```{r}
+outliers <- boxplot.stats(datos_M$perimeter_worst)$out
+out_ind <- which(datos_M$perimeter_worst %in% c(outliers))
+datos_M[out_ind,]
+```
+```{r}
+summary(datos_M$perimeter_worst)
+```
+
+
+```{r}
+IQR<-1.4206-1.0607
+umbral<-(1.4206 + (1.5*IQR))
+umbral
+```
+Como vemos el umbral que se nos marca para considerar valores extremos esta cerca de nuestro valores, por lo tanto podemos considerar estás muestras como validas pudiendo achacarlas a tumores más desarrollados que la media.
+
+Evaluamos a continuación “Area-worst”:
+
+```{r}
+boxplot(datos_escalados$area_worst~datos_escalados$diagnosis,main="Area Worst vs Diagnosis")
+```
+En este caso podemos ver unos outlieres más marcados.
+Vemos claramente que la media puede haberse visto afectada por ese valor del outilier mas extremo, en este caso, podemos pedir ayuda a un experto que sepa acerca de las caracteristicas de nuestro estudio, pero en caso de no poder disponer de esa ayuda, deberiamos de eliminar el caso relacionado a ese outlier para tener una distribución lo más normal posible. La otra opción seria reemplazarlo por la media o el valor más cercano aplicando técnicas como KNN o mediante clustering de datos.
+
+En nuestro caso mantemos los valores actuales, si fuese necesario y dado que en nuestro caso la distorsión generada es comprensible dado la complejidad del estudio del cancer, decidimos mantener todos los valores.
+
+Hemos trabajado en esta sección el tratamiento de los outliers.
+
+
+Duplicados?
+```{r}
+library(dplyr)
+count(unique(datos))
+```
+No hay valores duplicados
+
+```{r}
+datos_limpios <- datos
+```
+
+
+## Análisis de los datos
+```{r}
+summary(datos)
+```
+Podemos observar que la mayoria de datos son númericos continuos, con la excepción de la variable Diagnosis que es tipo categórica y deberemos de factorizar. Tambien podemo ver diferentes scalas o rangos de valores que nos indican que quizas será necesario un proceso de escalado de datos o de normalización. Como vemos la variable categórica unicamente toma dos valores por lo que no necesitamos llevar a cabo un analisis detallado de dicha variable de manera individual.
+
+
+
+```{r}
+table(datos$diagnosis)
+ggplot(data=datos,aes(x=diagnosis))+geom_bar()
+
+diagnosis.table <- table(datos_limpios$diagnosis)
+diagnosis.prop.table <- prop.table(diagnosis.table)*100
+lbls <-paste(sort(unique(datos_limpios$diagnosis)),round(diagnosis.prop.table,2), "%")
+pie(diagnosis.prop.table, labels = lbls, 
+   main="Porcentaje de tipo de tumor.")
+```
+```{r}
+library(gridExtra)
+radius_mean <- ggplot(data=datos,aes(x=radius_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("radius_mean")
+texture_mean <- ggplot(data=datos,aes(x=texture_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("texture_mean")
+smoothness_mean <- ggplot(data=datos,aes(x=smoothness_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("smoothness_mean")
+area_mean <- ggplot(data=datos,aes(x=area_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("area_mean")
+grid.arrange(radius_mean,texture_mean,smoothness_mean,area_mean,ncol=2)
+```
+Tras analizar los gráficos de densidad de cada variable, vemos que en las variables area y radio encontramos una diferencia en los valores de estos, aunque ambos comparten un pequeño rango de interesección donde podria ser tanto benigno como maligno. 
+
+
+```{r}
+concavity <- ggplot(data=datos,aes(x=concavity_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("concavity_mean")
+compactness_mean <- ggplot(data=datos,aes(x=compactness_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("compactness_mean")
+concave.points_mean <- ggplot(data=datos,aes(x=concave.points_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("concave.points_mean")
+symmetry_mean <- ggplot(data=datos,aes(x=symmetry_mean, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("symmetry_mean")
+
+grid.arrange(concavity,compactness_mean,concave.points_mean,symmetry_mean,ncol=2)
+```
+Si analizamos los otros 4 atributos, obtenemos que tanto el radio como el "smoothness" son variables que diferencian en gran manera el tipo de cancer.
+
+
+Si comprovamos el "worst" de los anteriores atributos:
+```{r}
+radius_worst <- ggplot(data=datos,aes(x=radius_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("radius_worst")
+texture_worst <- ggplot(data=datos,aes(x=texture_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("texture_worst")
+smoothness_worst <- ggplot(data=datos,aes(x=smoothness_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("smoothness_worst")
+area_worst <- ggplot(data=datos,aes(x=area_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("area_worst")
+
+concavity <- ggplot(data=datos,aes(x=concavity_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("concavity_worst")
+compactness_worst <- ggplot(data=datos,aes(x=compactness_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("compactness_worst")
+concave.points_worst <- ggplot(data=datos,aes(x=concave.points_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("concave.points_worst")
+symmetry_worst <- ggplot(data=datos,aes(x=symmetry_worst, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("symmetry_worst")
+
+grid.arrange(radius_worst,texture_worst,smoothness_worst,area_worst, concavity, compactness_worst, concave.points_worst, symmetry_worst,ncol=2)
+```
+La mayoria siguen la misma distribución que su media.
+
+
+Si comparamos las variables _se:
+```{r}
+radius_se <- ggplot(data=datos,aes(x=radius_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("radius_se")
+texture_se <- ggplot(data=datos,aes(x=texture_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("texture_se")
+smoothness_se <- ggplot(data=datos,aes(x=smoothness_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("smoothness_se")
+area_se <- ggplot(data=datos,aes(x=area_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("area_se")
+
+concavity <- ggplot(data=datos,aes(x=concavity_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("concavity_se")
+compactness_se <- ggplot(data=datos,aes(x=compactness_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("compactness_se")
+concave.points_se <- ggplot(data=datos,aes(x=concave.points_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("concave.points_se")
+symmetry_se <- ggplot(data=datos,aes(x=symmetry_se, group=diagnosis, fill=diagnosis))+geom_density(alpha=.5)+
+  scale_fill_manual(values=c("red","blue"))+ggtitle("symmetry_se")
+
+grid.arrange(radius_se,texture_se,smoothness_se,area_se, concavity, compactness_se, concave.points_se, symmetry_se,ncol=2)
+```
+Hay pequeñas diferencias, pero los benignos como los malignos siguen distribuciones muy muy parecidas en los atributos que ya eran similares en la "media" y en el "worst".
+
+
+## Comprobación de la normalidad y homogeneidad de la varianza
+
+Para la comprobación de que los valores que toman nuestras variables cuantitativas provienende una población distribuida normalmente, utilizaremos la prueba de normalidad deAnderson-Darling.
+
+H0: La muestra proviene de una distribución normal.
+H1: La muestra no proviene de una distribución normal.
+Para pruebas de normalidad siempre se plantean así las hipótesis.
+
+
+```{r}
+if (!require('nortest')) install.packages('nortest');library('nortest')
+
+alpha = 0.05
+col.names =colnames(datos)
+
+for (i in 1:ncol(datos)) {
+  if (i == 1) cat("Variables que no siguen una distribución normal:\n")
+  if (is.integer(datos[,i]) |is.numeric(datos[,i])) {
+    p_val =ad.test(datos[,i])$p.value
+    if (p_val < alpha) {
+      cat(col.names[i])
+      
+      if (i <ncol(datos) - 1)cat(", ")
+      if (i %% 3 == 0)cat("\n")
+    }
+  }
+}
+
+```
+Las variables no siguen una distribucion normal ya que:
+Si P < Alfa Se rechaza Ho
+Si p >= Alfa No se rechaza Ho
+
+
+Para estudiar la homogeneidad de varianzas, hemos decidido utilizar el test de Fligner-Killeen:
+
+En este caso solo he probado la homogeniedad de la variable radius_mean en comparacion con la variable decisiva "diagnosis".
+```{r}
+fligner.test(radius_mean ~ diagnosis, data = datos)
+```
+Como el p-value es inferior a 0.05, descartamos que las variables son homogenias.
+
+
+## Correlacion de las variables
+
+Una vez hemos visto como se distribuyen los datos en la variable categórica para ver los porcentajes, vamos a ver la correlación de nuestras variables, aquellas muy correlacionadas son de menor interés.
+```{r}
+library("corrplot")
+c <- cor(datos_limpios[,3:31])
+corrplot(c, order = "hclust", tl.cex = 0.7)
+```
+Como todas las variables seleccionadas son variables númericas podemos ver con la tabla de correlación la correlación directa entre dichas variables. A simple vista podemos ver que ciertas variables tienen una mayor correlación con otras, como tenemos un grán número de variables y hemos llevado a cabo de antemano PCA y hemos obtenido las variables que más contribuyen a la explicación de los datos, cogeremos dichas variables para continuar con el estudio del problema.
+
+
+## Qué variables cuantitativas influyen más en el cancer?
+
+
+Si aplicamos un PCA, podemos identificar las variables con mas peso en el dataset:
+Mediante PCA obtendremos las componentes principales, estas componentes principales nos indican la dirección en dond hay una mayor varianza por lo tanto una menor correlación. Para poder ver cuanta varianza hay en una dirección nos podemos ayudar de los autovaloes y autovectores de la matriz de covarianza.
+
+```{r}
+datos_numericos <- datos
+datos_numericos$diagnosis <- NULL
+pca_res <- prcomp(datos_numericos[,2:ncol(datos_numericos)], center = TRUE, scale = TRUE)
+plot(pca_res, type="l")
+```
+Podemos ver con la gráfica que al parecer las 6 primeras componentes principales explican de manera clara nuestro conjunto de daos, vamos a verlo de manera numérica.
+
+```{r}
+summary(pca_res)
+```
+Como se parecia ver, con las 6 primeras variables explicamos casi el 89% de la variación de los datos.
+
+Vamos obtener los autovectores y autovalores de nuestro dataset. Es importante que el número de autovectores y autovalores que tenga nuestro dataset será el número de dimensiones que tendrás. Como es de esperar tendremos el mismo número que variables, pero el valor del autovalor y en que dirección marcan que es variable sea considera como componente principal.
+
+```{r}
+e <- eigen(cor(datos_numericos[,2:ncol(datos_numericos)]))
+print(round(e$values, 4))
+```
+Podemos ver que tenemos 5-6 autovalores con bastante peso, esto indica que nuestro dataset se ve orientado por esas 5-6 variables, vemos por lo tanto que tenemos como PCA indicaba que 6 serian las componenet principales que más identifican los datos. El peso de la 7 PCA es muy insignificante en comparación al resto.
+
+Una vez vemos que tenemos 6 componentes principales tenemos que ver que variables son las que tienen un mayor peso en cada una.
+```{r}
+library(factoextra)
+library(gridExtra)
+p1 <- fviz_contrib(pca_res, choice="var", axes=1, fill="pink", color="grey", top=10)
+p2 <- fviz_contrib(pca_res, choice="var", axes=2, fill="skyblue", color="grey", top=10)
+p3 <- fviz_contrib(pca_res, choice="var", axes=3, fill="mediumpurple1", color="grey", top=10)
+p4 <- fviz_contrib(pca_res, choice="var", axes=4, fill="moccasin", color="grey", top=10)
+p5 <- fviz_contrib(pca_res, choice="var", axes=5, fill="lightgreen", color="grey", top=10)
+p6 <- fviz_contrib(pca_res, choice="var", axes=6, fill="lightyellow1", color="grey", top=10)
+grid.arrange(p1,p2,p3,p4,p5,p6,ncol=3)
+```
+
+Como buscamos predecir nuevas canceres y clasificarlos, emplearemos una técnica conocida para la selección de variables, esta técnia se basa en random forest y la importancia sobre la variable que queremos trabajar.
+```{r}
+library('FSelector')
+attribute.scores <- random.forest.importance(diagnosis ~ ., datos)
+attribute.scores
+```
+```{r}
+Top_6_features<-cutoff.k(attribute.scores, k = 6)
+Top_6_features
+```
+Podemos ver que algunas si son las variables que nos indicaban cada uno de los componentes principales, pero otras no. La selección de las variables para el analisis dependerá en gran medida del conocimiento del radiólogo o doctor que nos ayude en la elaboración de los modelos. Por el momento y tras comprobar que todas las variables que mostramos tienen un peso importante en las PCA las tomamos para el análisis.
+
+
+## Predicción de cancer
+
+En primer lugar tenemos que dividir nuestros datos entre test y entrenamiento: Como suele ser común hacemos un 70% para el entrenamiento y un 30 % para la predicción. Tras llevar a cabo esto debemos de proceder a crear el modelo. Mediante rules = True obtenemos reglas exclusivas pero no podremos pintar el árbol.
+```{r}
+set.seed(150)    
+cancer_entrenamiento <- sample_frac(datos, .7)
+cancer_test <- setdiff(datos, cancer_entrenamiento)
+```
+Tras dividir los datos procedemos a crear nuestro modelo, en este caso se trata del modelo de clasificación CART.
+
+```{r}
+if(!require(rpart)){
+    install.packages(rpart)
+    library(rpart) 
+}
+model_dtree<- rpart(cancer_entrenamiento$diagnosis~., data=cancer_entrenamiento,
+                    method = "class",
+                    parms = list(split ="information"),
+                    control = rpart.control(cp= 0.00001))      
+
+
+```
+
+A continuación procedemos a ver las reglas creades
+
+```{r}
+library(rpart.plot)
+rpart.rules(model_dtree,style = 'tall',cover = T)
+```
+Podemos ver que se han creado 6 reglas para la clasificación de los tumores como benignos y malignos. 
+Para entenderlas vemos un ejemplo con la segunda y la última regla:
+- Regla 5:
+  Grupo con diagnostico maligno es del 100%:
+  Compuesto por el 31% de los pacientes.
+  Regla:
+    Tiene que tener concave >=0.14
+    Radius_worst >= 15
+    
+  Se trata de un tumor benigno.
+  
+- Regla 2:
+  Grupo con diagnostico maligno es del 1%
+  Compuesto por el 59% de los pacientes
+  Regla:
+    Concave < 0.14
+    Perimeter worst < 108
+    
+  Se trata de un tumor benigno
+  
+
+Ahora mediante summary podemos observar las variables principales con mayor peso en la toma de decesiones para clasificar.
+    
+```{r}
+summary(model_dtree)
+```
+
+Tras un pequeño analisis de los resultados del modelo, clasificamos los valores del test.
+```{r}
+prediccion_1 <- predict(model_dtree,cancer_test, type = "class")
+library(caret) 
+(conf_matrix_dtree <- table(prediccion_1,cancer_test$diagnosis))
+confusionMatrix(conf_matrix_dtree)     
+confusionMatrix(prediccion_1, cancer_test$diagnosis)
+```
+Podemos ver que tenemos un acierto del 88,3%. Bastante bien pero mejorable.
+Y vemos que la caterogira usada para clasificar ha sido la Benigna.
+Mediante la matriz de confusión podemos ver los casos que se han clasificado como benignos correctamente y de manera incorrecta, lo mismo con los casos malignos.
+
+```{r}
+print(model_dtree)
+```
+```{r}
+prp(model_dtree,type=1)
+```
+
+Vamos a ver si optimizando nuestro modelo obtenemos un acierto mayor.
+```{r}
+plotcp(model_dtree)
+```
+Podemos ver que el error Xerror se minimiza y se mantiene estable con un cp  de 0.017, por lo tanto lo vamos a emplear de criterio para el nuevo modelo.
+
+```{r}
+model_dtree_2<- rpart(cancer_entrenamiento$diagnosis~., data=cancer_entrenamiento,
+                    method = "class",
+                    parms = list(split ="information"),
+                    control = rpart.control(cp= 0.017))      
+prediccion_2 <- predict(model_dtree,cancer_test, type = "class")
+(conf_matrix_dtree <- table(prediccion_2,cancer_test$diagnosis))
+confusionMatrix(conf_matrix_dtree)     
+confusionMatrix(prediccion_2, cancer_test$diagnosis)
+```
+
+Podemos ver que el modelo no ha mejorado en su precisión. Por lo tanto nos podríamos quedar con dicho modelo.
+
+Otra opción sería emplear otro método de clasificación como puede ser C50 o random forest.
+
+
+
+## Conclusión
+
+En este proyecto hemos abordado todos los aspectos que implican un trabajo de mineria de datos. Desde la selección y explicación de los datos, hasta llevar a cabo procesos de limpieza,analisis de correlación y de homogeneidad, así como la implementación de técnicas de clasificación.
+
+Pretende ser una guía básica de los pasos que son necesarios implementar en todo proyecto de minería de datos.
+
+En concreto con los datos tratados, hemos podido observar cuales son las variables con mayor peso en la predicción del cancer, como pueden ser el radius worts y el texture worst entre otras. Tras ello hemos aplicado un metodo de clasificación el cula no podrá servir para predecir futuros canceres. Así como hemos podido obtener una série de reglas que se podrian implementar en los reconocimientos de pacientes en los diferentes hospitales.
+
+
+
+
+
+
